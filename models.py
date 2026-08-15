@@ -1,15 +1,19 @@
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy.orm import relationship
 from database import Base
 
 
 class Prototype(Base):
     __tablename__ = 'prototypes'
 
-    id = Column(Integer, primary_key=True)
-    model_name = Column(String, unique=True)
+    id = Column(Integer, primary_key=True, index=True)
+    model_name = Column(String, index=True)
     engine_type = Column(String)
     horsepower = Column(Integer)
     weight = Column(Float)
+
+    owner_id = Column(Integer, ForeignKey("users.id"))
+    owner = relationship("User")
 
 
 class User(Base):
