@@ -3,3 +3,7 @@ uvicorn
 sqlalchemy
 pydantic
 python-dotenv
+PyJWT
+passlib
+bcrypt==3.2.2
+python-multipart

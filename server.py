@@ -41,6 +41,25 @@ def get_db():
         db.close()
 
 
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    payload = auth.verify_token(token)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    email = payload.get("sub")
+    if email is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="without identify")
+
+    user_db = db.query(User).filter(User.email == email).first()
+    if user_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Non-existent user")
+
+    return user_db
+
+
 @app.post("/login")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user_db = db.query(User).filter(User.email == form_data.username).first()
@@ -101,26 +120,28 @@ def leearn_data_clasificated(token: str = Depends(oauth2_scheme)):
     }
 
 
-@app.post("/api/prototypes", status_code=201, response_model=schemas.PrototypeResponse)
+@app.post("/api/prototypes", status_code=status.HTTP_201_CREATED, response_model=schemas.PrototypeResponse)
 def create_prototype(
-        prototype_data: schemas.PrototypeCreate,
-        db: Session = Depends(get_db),
-        token: str = Depends(oauth2_scheme)
+    prototype_data: schemas.PrototypeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-
-    payload = auth.verify_token(token)
-    if payload is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="¡Alert! invalid token, access denied"
-        )
-
     new_model = Prototype(**prototype_data.model_dump())
+    new_model.owner_id = current_user.id
     db.add(new_model)
     db.commit()
     db.refresh(new_model)
-
     return new_model
+
+
+@app.get("/api/my-prototype", response_model=list[schemas.PrototypeResponse])
+def get_my_prototypes(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    my_cars = db.query(Prototype).filter(
+        Prototype.owner_id == current_user.id).all()
+    return my_cars
 
 
 @app.get("/api/prototypes", response_model=list[schemas.PrototypeResponse])
